@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>British Swim School - Register</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      font-size: 18px;
+      color: #333;
+    }
+    .loading p { margin: 10px 0; }
+    .spinner {
+      border: 4px solid #eee;
+      border-top: 4px solid #0066cc;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    iframe {
+      width: 100%;
+      height: 100vh;
+      border: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Loading your registration form...</p>
+    <p style="font-size:14px; color:#666;">Your info will be pre-filled.</p>
+  </div>
+
+  <iframe id="regFrame" style="display:none;"></iframe>
+
+  <script>
+    // Parse URL parameters
+    const params = new URLSearchParams(window.location.search);
+
+    // Required: class ID and org ID
+    const orgId = params.get('org') || '545911';
+    const classId = params.get('classId');
+    const waitlist = params.get('wl') || '0';
+
+    // Optional: caller info from voice agent
+    const firstName = params.get('first') || '';
+    const lastName = params.get('last') || '';
+    const phone = params.get('phone') || '';
+    const email = params.get('email') || '';
+    const address = params.get('address') || '';
+    const city = params.get('city') || '';
+    const state = params.get('state') || '';
+    const zip = params.get('zip') || '';
+
+    // Build Jackrabbit registration URL
+    const regUrl = `https://app.jackrabbitclass.com/regv2.asp?id=${orgId}&hc=&initEmpty=&hdrColor=&WL=${waitlist}&preLoadClassID=${classId}&loc=`;
+
+    // Load the form in iframe
+    const iframe = document.getElementById('regFrame');
+    const loading = document.getElementById('loading');
+
+    iframe.src = regUrl;
+
+    iframe.onload = function() {
+      loading.style.display = 'none';
+      iframe.style.display = 'block';
+
+      // Attempt to auto-fill fields
+      // Note: This only works if the iframe is same-origin or CORS allows it.
+      // If Jackrabbit blocks cross-origin iframe access (likely), we fall back
+      // to the redirect approach below.
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+        // Family info
+        if (lastName) {
+          const lastNameField = doc.querySelector('input[name*="FamilyName"], input[name*="LastName"]');
+          if (lastNameField) setVal(lastNameField, lastName);
+        }
+
+        // Contact #1
+        if (firstName) {
+          const firstNameField = doc.querySelector('input[name*="Contact1First"], input[name*="FirstName"]');
+          if (firstNameField) setVal(firstNameField, firstName);
+        }
+
+        // Phone
+        if (phone) {
+          const phoneField = doc.querySelector('input[name*="PrimaryPhone"], input[name*="Phone"]');
+          if (phoneField) setVal(phoneField, phone);
+          const cellField = doc.querySelector('input[name*="Cell"]');
+          if (cellField) setVal(cellField, phone);
+        }
+
+        // Email
+        if (email) {
+          const emailFields = doc.querySelectorAll('input[name*="Email"], input[type="email"]');
+          emailFields.forEach(f => setVal(f, email));
+        }
+
+        // Address
+        if (address) {
+          const addrField = doc.querySelector('input[name*="Address"]');
+          if (addrField) setVal(addrField, address);
+        }
+        if (city) {
+          const cityField = doc.querySelectorAll('input[name*="City"]');
+          cityField.forEach(f => setVal(f, city));
+        }
+        if (state) {
+          const stateSelects = doc.querySelectorAll('select[name*="State"]');
+          stateSelects.forEach(s => { s.value = state; });
+        }
+        if (zip) {
+          const zipFields = doc.querySelectorAll('input[name*="Zip"]');
+          zipFields.forEach(f => setVal(f, zip));
+        }
+
+      } catch (e) {
+        // Cross-origin blocked — expected if Jackrabbit doesn't allow framing.
+        // The form still loads, user just fills it manually.
+        console.log('Auto-fill blocked by cross-origin policy. Form still usable.');
+      }
+    };
+
+    function setVal(el, val) {
+      el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  </script>
+</body>
+</html>
