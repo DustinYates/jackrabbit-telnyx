@@ -205,7 +205,9 @@ app.post('/lookup', async (req, res) => {
 
 
 // ============================================================
-// 3. POST /send-link — Text a pre-filled registration link
+// 3. POST /send-link — Build a pre-filled registration link
+//    Returns the URL only. The AI assistant uses the built-in
+//    Send Message tool to text it to the caller.
 // ============================================================
 app.post('/send-link', async (req, res) => {
   try {
@@ -219,10 +221,6 @@ app.post('/send-link', async (req, res) => {
       email,
       students, // [{ first, last, gender, bdate, class_id }]
     } = req.body;
-
-    if (!to) {
-      return res.json({ success: false, message: 'Missing phone number' });
-    }
 
     // Build pre-filled registration URL
     const params = new URLSearchParams();
@@ -246,31 +244,15 @@ app.post('/send-link', async (req, res) => {
     const useClassId = class_id || (students?.[0]?.class_id) || '';
     const prefillLink = `${BASE_URL}/register/${org_id}/${useClassId}?${params.toString()}`;
 
-    // Send SMS
-    const smsResponse = await fetch('https://api.telnyx.com/v2/messages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${TELNYX_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: TELNYX_FROM_NUMBER,
-        to: to,
-        text: `Here's your registration link for ${class_name || 'British Swim School'}:\n\n${prefillLink}\n\nYour info is pre-filled — just add payment and submit!`,
-      }),
-    });
-
-    const smsData = await smsResponse.json();
-
     return res.json({
       success: true,
-      message: `Registration link sent to ${to}`,
-      prefill_link: prefillLink,
-      sms_id: smsData.data?.id
+      registration_url: prefillLink,
+      class_name: class_name || 'British Swim School',
+      message: `Here's your registration link for ${class_name || 'British Swim School'}:\n\n${prefillLink}\n\nYour info is pre-filled — just add payment and submit!`
     });
 
   } catch (err) {
-    return res.json({ success: false, message: 'Failed to send SMS', error: err.message });
+    return res.json({ success: false, message: 'Failed to build registration link', error: err.message });
   }
 });
 
